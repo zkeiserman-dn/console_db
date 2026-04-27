@@ -16,6 +16,34 @@ import logging
 logging.captureWarnings(True)
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+
+def _load_env_file(path="~/.console_env"):
+    """Source a shell-style 'export KEY=value' file into os.environ.
+
+    Lets the tool work over non-interactive SSH where ~/.bashrc is not loaded.
+    Existing environment values always win (we use setdefault), so a real
+    `export` in the user's shell still beats whatever is in this file.
+    """
+    p = os.path.expanduser(path)
+    try:
+        with open(p) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if line.startswith("export "):
+                    line = line[len("export "):]
+                if "=" not in line:
+                    continue
+                k, _, v = line.partition("=")
+                v = v.strip().strip('"').strip("'")
+                os.environ.setdefault(k.strip(), v)
+    except (OSError, FileNotFoundError):
+        pass
+
+
+_load_env_file()
+
 # Remote merge script that refreshes the local Device42 cache and merges
 # any NEW console + PDU rows into console_devices.csv / pdu_mapping.json.
 # Never overwrites existing entries; mismatches are only logged.
@@ -34,7 +62,7 @@ D42_MERGE_LOG    = "/home/dn/console_db/d42_merge.log"
 #
 # Set CONSOLE_SKIP_UPDATE_CHECK=1 to suppress the banner entirely.
 # ---------------------------------------------------------------------------
-__version__ = "2026.04.27.5"
+__version__ = "2026.04.27.6"
 CHANGELOG_PATH    = "/home/dn/console_db/CHANGELOG.md"
 LAST_SEEN_PATH    = os.path.expanduser("~/.console_last_seen")
 UPDATE_SKIP_ENV   = "CONSOLE_SKIP_UPDATE_CHECK"

@@ -1,3 +1,12 @@
+v2026.04.27.6  (2026-04-27)
+  * Public release prep: all secrets moved to environment variables. Each
+    script (console.py, d42_merge.py, dump_d42_consoles.py) auto-loads
+    ~/.console_env on startup so non-interactive SSH sessions still see
+    the credentials without needing to source it from .bashrc.
+  * Repo published at https://github.com/zkeiserman-dn/console_db
+  * console_devices.csv, pdu_mapping.json, d42_merge.log, .console_last_seen
+    and .console_env are now gitignored. Live lab data stays out of the repo.
+
 v2026.04.27.5  (2026-04-27)
   * Silent on no-op runs: the per-run `console vX.Y.Z` line is gone. The
     "What's new" banner still appears the first run after a __version__ bump

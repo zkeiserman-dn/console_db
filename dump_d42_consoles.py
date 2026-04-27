@@ -53,6 +53,30 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
+def _load_env_file(path="~/.console_env"):
+    """Source 'export KEY=value' lines from the given file into os.environ.
+    Existing env values win (setdefault). Lets the script work under SSH
+    non-interactive shells where ~/.bashrc is not sourced."""
+    p = os.path.expanduser(path)
+    try:
+        with open(p) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if line.startswith("export "):
+                    line = line[len("export "):]
+                if "=" not in line:
+                    continue
+                k, _, v = line.partition("=")
+                os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+    except (OSError, FileNotFoundError):
+        pass
+
+
+_load_env_file()
+
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
