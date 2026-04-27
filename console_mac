@@ -1,0 +1,11 @@
+#!/bin/bash
+# console — Mac-side launcher for the DriveNets console tool.
+#
+# This wrapper just hands off to the expect script which SSHes to the dev VM
+# and runs the real console.py there. Credentials come from environment
+# variables (see console_expect for the list).
+#
+# Usage:  console [-r] [--check|--fix|--down-only|--power-on-only] SERIAL
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec /usr/bin/expect -f "$DIR/console_expect" -- "$@"

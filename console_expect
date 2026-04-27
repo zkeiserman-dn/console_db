@@ -1,0 +1,35 @@
+#!/usr/bin/expect -f
+# console_expect — Mac-side wrapper that SSHes to the dev VM and runs console.py
+# there. All credentials come from environment variables; nothing is hardcoded.
+#
+# Required env (set on your Mac in ~/.zshrc or ~/.bashrc):
+#   DN_SERVER_HOST       e.g. "zkeiserman-dev"
+#   DN_SERVER_PASSWORD   the SSH password for that host
+# Optional:
+#   DN_SERVER_USER       defaults to "dn"
+#
+# The dev VM's own credentials (PDU/CS/Device42) are loaded server-side from
+# ~/.console_env via the `source` line below.
+
+log_user 0
+set timeout 120
+
+if {![info exists env(DN_SERVER_HOST)] || $env(DN_SERVER_HOST) eq ""} {
+    puts stderr "console_expect: DN_SERVER_HOST is not set"
+    exit 2
+}
+if {![info exists env(DN_SERVER_PASSWORD)] || $env(DN_SERVER_PASSWORD) eq ""} {
+    puts stderr "console_expect: DN_SERVER_PASSWORD is not set"
+    exit 2
+}
+
+set host $env(DN_SERVER_HOST)
+set pw   $env(DN_SERVER_PASSWORD)
+set user [expr {[info exists env(DN_SERVER_USER)] ? $env(DN_SERVER_USER) : "dn"}]
+
+set cmd "source ~/.console_env 2>/dev/null; python3 ~/console_db/console.py [join $argv " "]"
+spawn ssh -o StrictHostKeyChecking=no -t $user@$host $cmd
+expect "assword:"
+send "$pw\r"
+log_user 1
+interact

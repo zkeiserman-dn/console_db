@@ -1,0 +1,30 @@
+__pycache__/
+*.py[cod]
+.venv/
+
+# Self-update / merge backups
+*.bak
+*.bak.*
+*.new
+*.orig
+
+# Live lab data (per-deployment, never commit)
+console_devices.csv
+pdu_mapping.json
+device42_cache.sqlite
+
+# Runtime artefacts
+d42_merge.log
+.d42_merge.lock
+.d42_merge.last
+.console_last_seen
+device42_consoles.txt
+device42_pdus.txt
+
+# Secrets file referenced by console_expect
+.console_env
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

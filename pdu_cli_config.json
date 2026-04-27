@@ -1,0 +1,9 @@
+{
+  "dev_outlet": [
+    "pdu-d15-1", "pdu-a01-1", "pdu-a02-1", "pdu-b13-1", "pdu-b13-2",
+    "pdu-b14-1", "pdu-b14-2", "pdu-b15-1", "pdu-b15-2", "pdu-b16-1", "pdu-b16-2"
+  ],
+  "ol": [
+    "pdu-b10-1", "m-wb-power101b"
+  ]
+}
