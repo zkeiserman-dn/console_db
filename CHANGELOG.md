@@ -1,3 +1,9 @@
+v2026.04.27.7  (2026-04-27)
+  * Public repo is live at https://github.com/zkeiserman-dn/console_db.
+  * Future updates: bump __version__ + prepend a CHANGELOG.md section, then
+    `git commit && git push`. Every Mac running console will see the
+    "What's new" banner the next time you run `console <SERIAL>`.
+
 v2026.04.27.6  (2026-04-27)
   * Public release prep: all secrets moved to environment variables. Each
     script (console.py, d42_merge.py, dump_d42_consoles.py) auto-loads

@@ -62,7 +62,7 @@ D42_MERGE_LOG    = "/home/dn/console_db/d42_merge.log"
 #
 # Set CONSOLE_SKIP_UPDATE_CHECK=1 to suppress the banner entirely.
 # ---------------------------------------------------------------------------
-__version__ = "2026.04.27.6"
+__version__ = "2026.04.27.7"
 CHANGELOG_PATH    = "/home/dn/console_db/CHANGELOG.md"
 LAST_SEEN_PATH    = os.path.expanduser("~/.console_last_seen")
 UPDATE_SKIP_ENV   = "CONSOLE_SKIP_UPDATE_CHECK"
