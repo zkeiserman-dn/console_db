@@ -1,3 +1,12 @@
+v2026.05.05.1  (2026-05-05)
+  * Fix: connect() no longer hardcodes "3" for the Port Access menu slot.
+    On SN9116CO console servers (and any other model that uses a different
+    layout), Port Access is at slot 4. Hardcoding 3 dropped you into Port
+    Settings instead, then sent the device port number as a sub-menu key.
+    The fix parses the main menu and picks the slot whose label is
+    "Port Access" (case-insensitive). Falls back to "3" if not found, so
+    older consoles keep working.
+
 v2026.04.27.7  (2026-04-27)
   * Public repo is live at https://github.com/zkeiserman-dn/console_db.
   * Future updates: bump __version__ + prepend a CHANGELOG.md section, then

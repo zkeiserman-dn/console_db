@@ -62,7 +62,7 @@ D42_MERGE_LOG    = "/home/dn/console_db/d42_merge.log"
 #
 # Set CONSOLE_SKIP_UPDATE_CHECK=1 to suppress the banner entirely.
 # ---------------------------------------------------------------------------
-__version__ = "2026.04.27.7"
+__version__ = "2026.05.05.1"
 CHANGELOG_PATH    = "/home/dn/console_db/CHANGELOG.md"
 LAST_SEEN_PATH    = os.path.expanduser("~/.console_last_seen")
 UPDATE_SKIP_ENV   = "CONSOLE_SKIP_UPDATE_CHECK"
@@ -495,7 +495,19 @@ def connect(serial, console_server, port_num):
     if "Select one:" not in buf and "Main Menu" not in buf:
         print("ERROR: no menu (got:", buf[:200], ")")
         sys.exit(1)
-    chan.send("3\r")
+
+    # Parse the main menu to find which slot is "Port Access".
+    # Different console-server models put it at different numbers
+    # (e.g. WB consoles -> 3, SN9116CO -> 4). Hardcoding 3 lands you in
+    # "Port Settings" on a SN9116CO, which silently corrupts the next
+    # keystrokes. Match  "  N. Port Access"  with whitespace tolerance.
+    port_access_match = re.search(
+        r"(?im)^\s*(\d+)\s*\.\s*Port\s+Access\b",
+        buf,
+    )
+    port_access_key = port_access_match.group(1) if port_access_match else "3"
+
+    chan.send(port_access_key + "\r")
     time.sleep(0.3)
     buf = ""
     for _ in range(30):
