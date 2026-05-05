@@ -1,3 +1,15 @@
+v2026.05.05.2  (2026-05-05)
+  * UX: when the requested port is held in EXCLUSIVE mode by another user,
+    the wrapper used to leave you stranded inside the SN9116CO menu staring
+    at "Exclusive mode and port busy! Press Enter to continue..." with no
+    indication of who held the port or how to recover. connect() now
+    detects the busy banner, walks the chassis admin menus to gather the
+    serial-port table and the active session list, reverse-DNS resolves
+    each session's source IP, filters out our own dev-VM hop, and prints a
+    clean "PORT BUSY: <serial> (<CS> port N)" summary listing the
+    candidate session owners (oldest session first), then exits 2 instead
+    of dropping into the menu's Press-Enter loop.
+
 v2026.05.05.1  (2026-05-05)
   * Fix: connect() no longer hardcodes "3" for the Port Access menu slot.
     On SN9116CO console servers (and any other model that uses a different

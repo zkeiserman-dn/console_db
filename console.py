@@ -62,7 +62,7 @@ D42_MERGE_LOG    = "/home/dn/console_db/d42_merge.log"
 #
 # Set CONSOLE_SKIP_UPDATE_CHECK=1 to suppress the banner entirely.
 # ---------------------------------------------------------------------------
-__version__ = "2026.05.05.1"
+__version__ = "2026.05.05.2"
 CHANGELOG_PATH    = "/home/dn/console_db/CHANGELOG.md"
 LAST_SEEN_PATH    = os.path.expanduser("~/.console_last_seen")
 UPDATE_SKIP_ENV   = "CONSOLE_SKIP_UPDATE_CHECK"
@@ -467,6 +467,107 @@ def pdu_reboot_outlet(pdu_host, outlet):
 
 # ── Console connect ────────────────────────────────────────────────────────────
 
+def _drain_chan(chan, secs):
+    """Read everything the channel emits over the next `secs` seconds."""
+    import time
+    out = ""
+    end = time.time() + secs
+    while time.time() < end:
+        if chan.recv_ready():
+            out += chan.recv(16384).decode("utf-8", errors="replace")
+        else:
+            time.sleep(0.05)
+    return out
+
+
+def _report_busy_and_exit(chan, console_server, port_num, serial):
+    """Port is held in EXCLUSIVE mode by another session.
+
+    Walk the SN9116CO admin menus to gather (a) the serial-port table (which
+    confirms which ports are Busy) and (b) the session list (so the user can
+    see who else is on the chassis), then print a clean summary and exit
+    cleanly so the user doesn't get stranded in the Press-Enter loop.
+    """
+    import socket
+    import time
+
+    sessions_raw = ""
+    serial_raw = ""
+    try:
+        chan.send("\r")           # ack the "Press Enter to continue" prompt
+        time.sleep(0.3)
+        chan.send("Q\r")          # back to Port Access list
+        time.sleep(0.3)
+        chan.send("Q\r")          # back to Main Menu
+        time.sleep(0.5)
+        _drain_chan(chan, 0.5)
+        chan.send("7\r")          # 7 = CLI Mode
+        time.sleep(0.8)
+        _drain_chan(chan, 0.8)
+        chan.send("serial\r")
+        serial_raw = _drain_chan(chan, 1.8)
+        chan.send("session\r")
+        sessions_raw = _drain_chan(chan, 1.8)
+        chan.send("quit\r")
+    except Exception:
+        # Best-effort: even if menu navigation breaks, we still want to print
+        # what we know.
+        pass
+
+    # Parse session table - SN9116CO format we observed:
+    #   "1   | dn   | SSH | 10.10.73.232 | 0  | 2026-05-05 09:24:52 | ..."
+    # Skip the dev VM we tunnelled through (this very process); the user is
+    # never the one holding the port if they're getting "busy".
+    self_ips = set()
+    try:
+        self_ips.add(socket.gethostbyname(socket.gethostname()))
+    except Exception:
+        pass
+    self_ips.add("127.0.0.1")
+
+    others = []
+    for line in (sessions_raw or "").splitlines():
+        m = re.match(
+            r"\s*(\d+)\s*\|\s*(\S+)\s*\|\s*(\S+)\s*\|\s*(\d{1,3}(?:\.\d{1,3}){3})"
+            r"\s*\|\s*(\d+)\s*\|\s*([\d\-]+\s+[\d:]+)",
+            line,
+        )
+        if not m:
+            continue
+        sid, who, svc, ip, port, login = m.groups()
+        if ip in self_ips:
+            continue
+        host = ""
+        try:
+            host = socket.gethostbyaddr(ip)[0]
+        except Exception:
+            pass
+        others.append((sid, who, ip, host, login))
+
+    print()
+    print("=" * 72)
+    print(f"  PORT BUSY: {serial}  ({console_server} port {port_num})")
+    print("=" * 72)
+    print("  The console-server reported:")
+    print("     'Exclusive mode and port busy! Press Enter to continue...'")
+    print("  Another user has the serial port locked in exclusive mode.")
+    print()
+    if others:
+        print("  Other active sessions on the chassis:")
+        for sid, who, ip, host, login in others:
+            label = host or ip
+            print(f"     [{sid}] {who:<8}  from {label:<40}  since {login}")
+        print()
+        print("  Ping the most likely owner (oldest session) to release the port,")
+        print("  or escalate via Slack/Jira before forcibly killing their session")
+        print(f"  from CONSOLE-{console_server.split('-')[-1]} -> Sessions menu.")
+    else:
+        print("  Could not enumerate active sessions on the chassis.")
+        print("  Login to the chassis manually and check the Sessions menu.")
+    print("=" * 72)
+    sys.exit(2)
+
+
 def connect(serial, console_server, port_num):
     if not paramiko:
         print("Install paramiko for console connect: pip install paramiko")
@@ -520,6 +621,22 @@ def connect(serial, console_server, port_num):
     time.sleep(0.3)
     chan.send("\r")
     time.sleep(0.3)
+
+    # Sniff the post-select buffer for ~1.5s. If the SN9116CO came back with
+    # "Exclusive mode and port busy", another user holds the port - bail out
+    # cleanly with a useful summary instead of dropping the user into the
+    # menu's "Press Enter to continue..." trap with no clue who's hogging it.
+    post = ""
+    busy_deadline = time.time() + 1.5
+    while time.time() < busy_deadline:
+        if chan.recv_ready():
+            post += chan.recv(8192).decode("utf-8", errors="replace")
+        else:
+            time.sleep(0.05)
+    if re.search(r"Exclusive mode and port busy|port\s+busy|in\s+use", post, re.I):
+        _report_busy_and_exit(chan, console_server, port_num, serial)
+        return  # _report_busy_and_exit() always exits, but keep linters happy
+
     filter_patterns = [
         r"Press \[Ctrl\+? ?d\] to go to the Suspend Menu\.?\r?\n?",
         rf"(?:^|\r?\n){re.escape(str(port_num))}\.?\s*[^\n]*[\r\n]+",
