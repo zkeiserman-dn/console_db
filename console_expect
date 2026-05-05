@@ -2,34 +2,98 @@
 # console_expect — Mac-side wrapper that SSHes to the dev VM and runs console.py
 # there. All credentials come from environment variables; nothing is hardcoded.
 #
-# Required env (set on your Mac in ~/.zshrc or ~/.bashrc):
+# Required env (set on your Mac in ~/.zshrc, ~/.bashrc, or ~/.zssh.conf):
 #   DN_SERVER_HOST       e.g. "zkeiserman-dev"
 #   DN_SERVER_PASSWORD   the SSH password for that host
+#                        ONLY needed when the SSH server still asks for a
+#                        password. Once your key is on the dev VM, key auth
+#                        takes over and this is never read again.
 # Optional:
 #   DN_SERVER_USER       defaults to "dn"
 #
 # The dev VM's own credentials (PDU/CS/Device42) are loaded server-side from
 # ~/.console_env via the `source` line below.
 
-log_user 0
 set timeout 120
 
+# Fall back to ~/.zssh.conf if the env vars weren't exported in this shell.
+# Lets the wrapper "just work" in stale terminals that haven't re-sourced
+# ~/.zshrc since the vars were added. We also accept ZSSH_DEV_VM as a synonym
+# for DN_SERVER_HOST, since the sister zssh-record tool uses that name.
+proc _conf_get {path key} {
+    if {![file readable $path]} { return "" }
+    set fp [open $path r]
+    set val ""
+    while {[gets $fp line] >= 0} {
+        if {[regexp "^\\s*(?:export\\s+)?${key}\\s*=\\s*\"?(\[^\"\\n\]+)\"?" $line _ v]} {
+            set val $v
+        }
+    }
+    close $fp
+    return $val
+}
+
 if {![info exists env(DN_SERVER_HOST)] || $env(DN_SERVER_HOST) eq ""} {
-    puts stderr "console_expect: DN_SERVER_HOST is not set"
-    exit 2
+    foreach k {DN_SERVER_HOST ZSSH_DEV_VM} {
+        set v [_conf_get "$env(HOME)/.zssh.conf" $k]
+        if {$v ne ""} { set env(DN_SERVER_HOST) $v; break }
+    }
 }
 if {![info exists env(DN_SERVER_PASSWORD)] || $env(DN_SERVER_PASSWORD) eq ""} {
-    puts stderr "console_expect: DN_SERVER_PASSWORD is not set"
+    foreach k {DN_SERVER_PASSWORD ZSSH_DEV_PASSWORD} {
+        set v [_conf_get "$env(HOME)/.zssh.conf" $k]
+        if {$v ne ""} { set env(DN_SERVER_PASSWORD) $v; break }
+    }
+}
+if {![info exists env(DN_SERVER_USER)] || $env(DN_SERVER_USER) eq ""} {
+    set v [_conf_get "$env(HOME)/.zssh.conf" "DN_SERVER_USER"]
+    if {$v ne ""} { set env(DN_SERVER_USER) $v }
+}
+
+if {![info exists env(DN_SERVER_HOST)] || $env(DN_SERVER_HOST) eq ""} {
+    puts stderr "console_expect: DN_SERVER_HOST is not set (export it in ~/.zshrc or set it in ~/.zssh.conf)"
     exit 2
 }
 
 set host $env(DN_SERVER_HOST)
-set pw   $env(DN_SERVER_PASSWORD)
 set user [expr {[info exists env(DN_SERVER_USER)] ? $env(DN_SERVER_USER) : "dn"}]
+set have_pw [expr {[info exists env(DN_SERVER_PASSWORD)] && $env(DN_SERVER_PASSWORD) ne ""}]
+
+# Hide everything until we're past the (possible) password prompt, so the
+# user never sees the password being typed in. Once we're sure no password
+# is needed (key auth) or we've sent it, we re-enable output.
+log_user 0
 
 set cmd "source ~/.console_env 2>/dev/null; python3 ~/console_db/console.py [join $argv " "]"
 spawn ssh -o StrictHostKeyChecking=no -t $user@$host $cmd
-expect "assword:"
-send "$pw\r"
-log_user 1
+
+# Wait for either the password prompt OR any other output (= key auth
+# already worked; the prompt won't come). Re-emit consumed output so we
+# don't drop characters.
+expect {
+    -re {[Pp]assword:} {
+        if {!$have_pw} {
+            log_user 1
+            puts stderr "\nconsole_expect: ssh asked for a password but DN_SERVER_PASSWORD is not set"
+            exit 2
+        }
+        send "$env(DN_SERVER_PASSWORD)\r"
+        log_user 1
+    }
+    -re {.+} {
+        log_user 1
+        send_user -- $expect_out(0,string)
+    }
+    timeout {
+        log_user 1
+        puts stderr "console_expect: timed out waiting for ssh"
+        exit 1
+    }
+    eof {
+        log_user 1
+        catch wait result
+        exit [lindex $result 3]
+    }
+}
+
 interact

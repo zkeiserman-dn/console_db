@@ -1,3 +1,19 @@
+v2026.05.05.3  (2026-05-05)
+  * Fix: console_expect now handles SSH key auth correctly. The previous
+    version blindly did `expect "assword:"; send "$pw\r"`, which worked
+    only when the dev VM still asked for a password. Once your key was
+    pushed, key auth succeeded silently, the remote command ran and
+    exited, ssh closed - and the trailing `send` then fired into a
+    closed channel, surfacing the cryptic
+        send: spawn id exp6 not open
+    The new flow waits for either a password prompt OR any other output
+    (= key auth already worked) and proceeds either way.
+  * Robustness: console_expect also auto-loads DN_SERVER_HOST /
+    DN_SERVER_PASSWORD / DN_SERVER_USER from ~/.zssh.conf when they
+    aren't exported in the current shell. Stale terminals that haven't
+    re-sourced ~/.zshrc since install will now Just Work, instead of
+    failing with "DN_SERVER_HOST is not set".
+
 v2026.05.05.2  (2026-05-05)
   * UX: when the requested port is held in EXCLUSIVE mode by another user,
     the wrapper used to leave you stranded inside the SN9116CO menu staring
