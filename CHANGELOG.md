@@ -1,4 +1,11 @@
 v2026.05.05.3  (2026-05-05)
+v2026.05.09.1  (2026-05-09)
+  * Resilience: Mac wrapper (console_expect) now auto-restores console.py
+    from git on the dev VM before each run if the working tree file was 
+    deleted (a recurring accidental rm leaves python3 with "No such file").
+    Uses `git restore` / `git checkout HEAD --` inside ~/console_db.
+
+
   * Fix: console_expect now handles SSH key auth correctly. The previous
     version blindly did `expect "assword:"; send "$pw\r"`, which worked
     only when the dev VM still asked for a password. Once your key was

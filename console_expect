@@ -64,7 +64,8 @@ set have_pw [expr {[info exists env(DN_SERVER_PASSWORD)] && $env(DN_SERVER_PASSW
 # is needed (key auth) or we've sent it, we re-enable output.
 log_user 0
 
-set cmd "source ~/.console_env 2>/dev/null; python3 ~/console_db/console.py [join $argv " "]"
+# Auto-restore console.py if someone deleted it from the working tree (recurring footgun).
+set cmd "source ~/.console_env 2>/dev/null; cd ~/console_db 2>/dev/null && { test -f console.py || git restore console.py 2>/dev/null || git checkout HEAD -- console.py 2>/dev/null; }; python3 ~/console_db/console.py [join $argv " "]"
 spawn ssh -o StrictHostKeyChecking=no -t $user@$host $cmd
 
 # Wait for either the password prompt OR any other output (= key auth
