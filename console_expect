@@ -16,6 +16,28 @@
 
 set timeout 120
 
+# ---------------------------------------------------------------------------
+# Dev-VM choice prompt.
+# Asked on every invocation. Answer is the source of truth and OVERRIDES any
+# DN_SERVER_HOST already in the env or in ~/.zssh.conf.
+#   Empty / starts with 'n' (default) -> zkeiserman-vm  (the new VM)
+#   starts with 'o'                   -> zkeiserman-dev (the old VM)
+# Anything else falls back to the new VM with a warning.
+# ---------------------------------------------------------------------------
+puts -nonewline stderr "Use which dev VM?  \[n\]ew (zkeiserman-vm) / \[o\]ld (zkeiserman-dev) \[n\]: "
+flush stderr
+set vm_choice ""
+if {[gets stdin vm_choice] < 0} { set vm_choice "" }
+set vm_choice [string trim [string tolower $vm_choice]]
+if {$vm_choice eq "" || [string index $vm_choice 0] eq "n"} {
+    set env(DN_SERVER_HOST) "zkeiserman-vm"
+} elseif {[string index $vm_choice 0] eq "o"} {
+    set env(DN_SERVER_HOST) "zkeiserman-dev"
+} else {
+    puts stderr "console_expect: unknown choice '$vm_choice'; defaulting to new (zkeiserman-vm)"
+    set env(DN_SERVER_HOST) "zkeiserman-vm"
+}
+
 # Fall back to ~/.zssh.conf if the env vars weren't exported in this shell.
 # Lets the wrapper "just work" in stale terminals that haven't re-sourced
 # ~/.zshrc since the vars were added. We also accept ZSSH_DEV_VM as a synonym

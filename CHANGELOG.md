@@ -1,3 +1,15 @@
+v2026.05.14.1  (2026-05-14)
+  * Added zkeiserman-vm as a second dev VM target, parallel to zkeiserman-dev.
+  * console_expect now prompts on every invocation:
+      Use which dev VM?  [n]ew (zkeiserman-vm) / [o]ld (zkeiserman-dev) [n]:
+    Empty input or anything starting with 'n' picks the new VM (default);
+    anything starting with 'o' picks the old one. The choice OVERRIDES
+    DN_SERVER_HOST from the env or ~/.zssh.conf.
+  * Both VMs are equal peers with their own ~/.console_env, console_devices.csv,
+    pdu_mapping.json and SQLite cache. They sync independently from the same
+    Device42; the merge logic stays additive-only so concurrent runs cannot
+    corrupt each other.
+
 v2026.05.09.1  (2026-05-09)
   * Resilience: Mac wrapper (console_expect) now auto-restores console.py
     from git on the dev VM before each run if the working tree file was
