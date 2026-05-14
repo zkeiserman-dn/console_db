@@ -15,6 +15,9 @@ device42_cache.sqlite
 
 # Runtime artefacts
 d42_merge.log
+d42_merge.log.*
+*.log
+*.log.*
 .d42_merge.lock
 .d42_merge.last
 .console_last_seen
