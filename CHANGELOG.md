@@ -1,3 +1,11 @@
+v2026.05.14.2  (2026-05-14)
+  * Show the device's login prompt immediately after connect, no manual
+    Enter required. The 1.5s "port busy" sniff window was silently
+    swallowing whatever the device emitted in that interval (typically the
+    login banner). connect() now replays that captured buffer (filtered)
+    before entering interact mode; if the buffer is empty (device was
+    quiet), it sends one wake-up CR.
+
 v2026.05.14.1  (2026-05-14)
   * Added zkeiserman-vm as a second dev VM target, parallel to zkeiserman-dev.
   * console_expect now prompts on every invocation:

@@ -62,7 +62,7 @@ D42_MERGE_LOG    = "/home/dn/console_db/d42_merge.log"
 #
 # Set CONSOLE_SKIP_UPDATE_CHECK=1 to suppress the banner entirely.
 # ---------------------------------------------------------------------------
-__version__ = "2026.05.14.1"
+__version__ = "2026.05.14.2"
 CHANGELOG_PATH    = "/home/dn/console_db/CHANGELOG.md"
 LAST_SEEN_PATH    = os.path.expanduser("~/.console_last_seen")
 UPDATE_SKIP_ENV   = "CONSOLE_SKIP_UPDATE_CHECK"
@@ -643,6 +643,19 @@ def connect(serial, console_server, port_num):
         r"(?:^|\r?\n)Connected to Port: \d+[\r\n]+",
     ]
     filter_re = re.compile("|".join(f"({p})" for p in filter_patterns), re.I)
+
+    # Replay whatever the device emitted during the busy-sniff window so the
+    # user sees the login prompt (or banner) without having to hit Enter.
+    # Without this, the busy-sniff silently swallows the device's first output.
+    if post:
+        cleaned = filter_re.sub("", post)
+        if cleaned.strip():
+            sys.stdout.write(cleaned)
+            sys.stdout.flush()
+    else:
+        # Device stayed silent during the sniff -- nudge it with one more
+        # CR so the next read returns its prompt.
+        chan.send("\r")
     oldtty = termios.tcgetattr(sys.stdin)
     try:
         tty.setraw(sys.stdin.fileno())
